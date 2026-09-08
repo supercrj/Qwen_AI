@@ -136,3 +136,36 @@ class UndoAction:
     old_data: Any
     new_data: Any
     timestamp: float
+
+# 标准化结果数据类（用于 Worker 线程通信）
+@dataclass
+class ModAnalysisResult:
+    """Mod 分析结果"""
+    file_path: str
+    record_count: int
+    record_types: Dict[str, int]
+    formid_range: tuple
+    master_files: List[str] = field(default_factory=list)
+    
+@dataclass
+class TranslateResult:
+    """翻译结果"""
+    source_file: str
+    output_file: str
+    total_entries: int
+    translated_entries: int
+    failed_entries: List[str] = field(default_factory=list)
+    
+@dataclass
+class ConflictReport:
+    """冲突检测报告"""
+    mod_files: List[str]
+    conflicts: List[Dict[str, Any]] = field(default_factory=list)
+    recommendations: List[str] = field(default_factory=list)
+    
+@dataclass
+class SortResult:
+    """排序结果"""
+    sorted_files: List[str]
+    load_order: Dict[str, int]
+    warnings: List[str] = field(default_factory=list)

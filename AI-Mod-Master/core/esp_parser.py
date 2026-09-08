@@ -65,23 +65,39 @@ class ESPParser:
         """读取单个记录"""
         try:
             # 记录类型 (4 字节)
-            rec_type = f.read(4).decode('ascii', errors='ignore')
+            rec_type_bytes = f.read(4)
+            if len(rec_type_bytes) < 4:
+                return None  # EOF
+            rec_type = rec_type_bytes.decode('ascii', errors='ignore')
             
             # 记录大小 (4 字节)
-            rec_size = struct.unpack('<I', f.read(4))[0]
+            rec_size_bytes = f.read(4)
+            if len(rec_size_bytes) < 4:
+                return None
+            rec_size = struct.unpack('<I', rec_size_bytes)[0]
             
             # 标志位 (4 字节)
-            flags = struct.unpack('<I', f.read(4))[0]
+            flags_bytes = f.read(4)
+            if len(flags_bytes) < 4:
+                return None
+            flags = struct.unpack('<I', flags_bytes)[0]
             
             # FormID (4 字节)
-            form_id = struct.unpack('<I', f.read(4))[0]
+            form_id_bytes = f.read(4)
+            if len(form_id_bytes) < 4:
+                return None
+            form_id = struct.unpack('<I', form_id_bytes)[0]
             form_id_str = f"{form_id:08X}"
             
             # 保留字段 (2 字节)
-            f.read(2)
+            reserved_bytes = f.read(2)
+            if len(reserved_bytes) < 2:
+                return None
             
             # 读取记录数据
             rec_data = f.read(rec_size)
+            if len(rec_data) < rec_size:
+                print(f"警告：记录数据不完整，期望 {rec_size} 字节，实际 {len(rec_data)} 字节")
             
             # 解析子记录
             parsed_data = self._parse_subrecords(rec_data)
