@@ -1,57 +1,46 @@
 ```
-# Python
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-.Python
-env/
-venv/
-.venv/
-.ENV
-.python-version
-pip-log.txt
-pip-delete-this-directory.txt
-.tox/
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-*.log
-.git/modules/
-*.sublime-workspace
-.pytest_cache/
-.mypy_cache/
-.hypothesis/
+# Executables
+FO4Edit
+NifSkope
 
-# Distribution / packaging
-.Python
+# Common compiled/binary files
+*.exe
+*.dll
+*.so
+*.dylib
+*.o
+*.obj
+*.a
+*.lib
+*.out
+
+# Build directories
 build/
 develop-eggs/
 dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
+target/
+release/
+debug/
 
-# IDEs
+# Dependencies
+node_modules/
+vendor/
+third_party/
+
+# Logs and temp files
+*.log
+*.tmp
+*.temp
+*.bak
+*.cache
+
+# Editors
 .vscode/
 .idea/
 *.swp
 *.swo
-*.tmp
 
-# OS generated files
+# OS files
 .DS_Store
 .DS_Store?
 ._*
@@ -59,4 +48,9 @@ wheels/
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+# Environment
+.env
+.env.local
+*.env.*
 ```
