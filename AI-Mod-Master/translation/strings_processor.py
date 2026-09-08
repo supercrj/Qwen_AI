@@ -19,6 +19,58 @@ class StringEntry(BaseModel):
     modified: bool = False
 
 
+class StringsProcessor:
+    """字符串处理器（兼容旧版接口）"""
+    
+    def __init__(self):
+        self.strings_file = None
+    
+    def create_backup(self, mod_path: str) -> str:
+        """创建备份文件"""
+        import shutil
+        from pathlib import Path
+        mod_file = Path(mod_path)
+        backup_path = mod_file.with_suffix(mod_file.suffix + '.bak')
+        shutil.copy2(mod_file, backup_path)
+        return str(backup_path)
+    
+    def find_strings_file(self, mod_path: str) -> Optional[str]:
+        """查找对应的 strings 文件"""
+        from pathlib import Path
+        mod_file = Path(mod_path)
+        # 尝试常见路径
+        possible_paths = [
+            mod_file.with_suffix('.strings'),
+            mod_file.parent / "Strings" / f"{mod_file.stem}.strings",
+        ]
+        for p in possible_paths:
+            if p.exists():
+                return str(p)
+        return None
+    
+    def extract_strings(self, strings_file: str) -> List[Dict]:
+        """提取字符串"""
+        sf = StringsFile(strings_file)
+        sf.parse()
+        return [
+            {'form_id': e.form_id, 'text': e.original_text, 'translated': e.translated_text}
+            for e in sf.entries.values()
+        ]
+    
+    def write_translated_strings(self, strings_file: str, entries: List[Dict]) -> bool:
+        """写回翻译后的字符串"""
+        sf = StringsFile(strings_file)
+        sf.parse()
+        
+        translations = {}
+        for entry in entries:
+            if entry.get('translated'):
+                translations[entry['form_id']] = entry['translated']
+        
+        sf.apply_translations(translations)
+        return sf.save_binary(strings_file)
+
+
 class StringsFile:
     """Fallout4 .strings 文件处理器"""
     
@@ -139,9 +191,28 @@ class StringsFile:
     
     def save_binary(self, output_path: str) -> bool:
         """保存为二进制 .strings 格式"""
-        # TODO: 实现二进制写入
-        print(f"保存二进制文件到：{output_path}")
-        return True
+        try:
+            with open(output_path, 'wb') as f:
+                for entry in self.entries.values():
+                    # 写入 FormID (4 字节，小端)
+                    form_id_int = int(entry.form_id, 16)
+                    f.write(form_id_int.to_bytes(4, 'little'))
+                    
+                    # 准备文本（优先使用翻译后的文本）
+                    text = entry.translated_text if entry.translated_text else entry.original_text
+                    text_bytes = (text + '\x00').encode('utf-16-le')
+                    
+                    # 写入文本长度（字符数，不是字节数）
+                    char_count = len(text) + 1  # 包含 null 终止符
+                    f.write(char_count.to_bytes(4, 'little'))
+                    
+                    # 写入文本数据
+                    f.write(text_bytes)
+            
+            return True
+        except Exception as e:
+            print(f"保存二进制文件失败：{e}")
+            return False
     
     def get_untranslated_count(self) -> int:
         """获取未翻译的条目数量"""

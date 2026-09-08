@@ -27,7 +27,7 @@ from core.esp_parser import ESPParser
 from core.worker import AnalysisWorker, TranslateWorker, SortWorker
 from core.config_manager import config_manager
 from translation.strings_processor import StringsProcessor
-from ai_agent.mod_agent import ModAgent
+from ai_agent.mod_agent import ModAIAgent as ModAgent
 
 
 class WorkerThread(QThread):
