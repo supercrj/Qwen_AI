@@ -48,47 +48,64 @@ class BaseWorker(QThread):
 
 class AnalysisWorker(BaseWorker):
     """Mod 分析工作线程"""
+    analysis_complete = pyqtSignal(object)  # 发送 ModAnalysisResult 对象
+    error_occurred = pyqtSignal(str)
     
-    def __init__(self, file_path: str, fo4edit_path: str, output_path: Optional[str] = None):
+    def __init__(self, file_path: str, fo4edit_path: Optional[str] = None):
         super().__init__("Mod 分析")
         self.file_path = file_path
         self.fo4edit_path = fo4edit_path
-        self.output_path = output_path
         
     def execute_task(self) -> Dict:
-        from core.fo4edit_bridge import FO4EditBridge
+        from core.models import ModAnalysisResult
+        from core.esp_parser import ESPParser
+        from core.fo4edit_bridge import FO4EditBridge, MockFO4EditBridge
         
-        bridge = FO4EditBridge(self.fo4edit_path)
+        self.report_progress(10, "解析 ESP/ESM 文件...")
+        parser = ESPParser()
+        records = parser.parse_file(self.file_path)
         
-        # 验证文件
-        self.report_progress(10, "验证文件路径...")
-        valid, msg = bridge.validate_path(self.file_path)
-        if not valid:
-            raise Exception(f"文件验证失败：{msg}")
+        # 构建标准结果对象
+        type_counts = {}
+        min_fid = 0xFFFFFFFF
+        max_fid = 0
+        
+        for record in records:
+            rec_type = record.header.record_type
+            type_counts[rec_type] = type_counts.get(rec_type, 0) + 1
             
-        # 启动 FO4Edit 导出 JSON
-        self.report_progress(30, "启动 FO4Edit...")
-        json_data = bridge.export_to_json(self.file_path)
+            if record.header.form_id > 0:
+                min_fid = min(min_fid, record.header.form_id)
+                max_fid = max(max_fid, record.header.form_id)
         
-        if not json_data:
-            raise Exception("FO4Edit 未能导出数据")
-            
-        self.report_progress(80, "解析数据结构...")
+        result = ModAnalysisResult(
+            file_path=self.file_path,
+            record_count=len(records),
+            record_types=type_counts,
+            formid_range=(min_fid if min_fid != 0xFFFFFFFF else 0, max_fid),
+            master_files=[]
+        )
         
-        # 保存结果
-        if self.output_path:
-            import json
-            with open(self.output_path, 'w', encoding='utf-8') as f:
-                json.dump(json_data, f, indent=2, ensure_ascii=False)
-                
+        # 如果有 FO4Edit 路径，补充详细信息
+        if self.fo4edit_path:
+            self.report_progress(50, "调用 FO4Edit 获取详细信息...")
+            bridge = FO4EditBridge(self.fo4edit_path)
+            valid, msg = bridge.validate_path(self.file_path)
+            if valid:
+                json_data = bridge.export_to_json(self.file_path)
+                if json_data:
+                    result.master_files = json_data.get('masters', [])
+        else:
+            # 使用模拟桥接器获取基本信息
+            self.report_progress(50, "使用模拟模式分析...")
+            bridge = MockFO4EditBridge()
+            info = bridge.get_mod_info(self.file_path)
+            if info and 'masters' in info:
+                result.master_files = info.get('masters', [])
+        
         self.report_progress(100, "分析完成")
         
-        return {
-            "file": self.file_path,
-            "output": self.output_path,
-            "record_count": len(json_data.get('records', [])),
-            "masters": json_data.get('masters', [])
-        }
+        return result
 
 
 class TranslateWorker(BaseWorker):
