@@ -33,18 +33,29 @@ pip install -r requirements.txt
 
 echo.
 echo [步骤 3/3] 验证安装...
-python -c "from ai_agent.mod_agent import ModAIAgent; print('✓ 所有模块安装成功')"
+python -c "from ai_agent.mod_agent import ModAIAgent; print('AI Agent: OK')"
+python -c "from core.fo4edit_bridge import FO4EditBridge, MockFO4EditBridge; print('FO4Edit Bridge: OK')"
+python -c "from core.esp_parser import ESPParser, ModModifier; print('ESP Parser: OK')"
+python -c "from translation.strings_processor import StringsProcessor; print('Strings Processor: OK')"
 
 echo.
 echo ========================================
 echo 安装完成!
 echo.
-echo 下一步:
-echo 1. 运行 build.bat 打包为 EXE
-echo 2. 或直接运行：python main_gui.py
+echo 下一步操作:
+echo 1. 安装本地大模型 (推荐 Ollama):
+echo    - 下载：https://ollama.ai/download
+echo    - 运行：ollama pull qwen2.5:7b
 echo.
-echo 本地大模型配置说明:
-echo - Ollama: http://localhost:11434/v1
-echo - LM Studio: http://localhost:1234/v1
+echo 2. (可选) 安装 FO4Edit:
+echo    - 下载：https://github.com/xEdit/xEdit/releases
+echo    - 将 FO4Edit.exe 路径配置到程序中
+echo.
+echo 3. 打包为 EXE:
+echo    - 双击运行 build.bat
+echo.
+echo 4. 直接运行 GUI (开发模式):
+echo    - python main_gui.py
+echo.
 echo ========================================
 pause

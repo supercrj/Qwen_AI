@@ -22,23 +22,32 @@ pip install -r requirements.txt -q
 
 echo.
 echo [3/4] 验证模块导入...
-python -c "from ai_agent.mod_agent import ModAIAgent; print('✓ AI Agent OK')"
-python -c "from core.fo4edit_bridge import FO4EditBridge, MockFO4EditBridge; print('✓ FO4Edit Bridge OK')"
-python -c "from core.esp_parser import ESPParser, ModModifier; print('✓ ESP Parser OK')"
-python -c "from translation.strings_processor import StringsProcessor; print('✓ Strings Processor OK')"
+python -c "from ai_agent.mod_agent import ModAIAgent; print('AI Agent: OK')"
+python -c "from core.fo4edit_bridge import FO4EditBridge, MockFO4EditBridge; print('FO4Edit Bridge: OK')"
+python -c "from core.esp_parser import ESPParser, ModModifier; print('ESP Parser: OK')"
+python -c "from translation.strings_processor import StringsProcessor; print('Strings Processor: OK')"
 
 echo.
-echo [4/4] 开始打包...
+echo [4/4] 开始打包 (可能需要 2-5 分钟)...
 pyinstaller --clean AI-Mod-Master.spec
 
 if exist "dist\AI-Mod-Master.exe" (
     echo.
     echo ========================================
-    echo ✓ 打包成功!
+    echo 打包成功!
     echo 可执行文件位置：dist\AI-Mod-Master.exe
     echo ========================================
+    echo.
+    echo 使用说明:
+    echo 1. 将 dist 文件夹复制到任意位置
+    echo 2. 运行 AI-Mod-Master.exe
+    echo 3. 首次使用请配置本地大模型 API
+    echo    - Ollama: http://localhost:11434/v1
+    echo    - LM Studio: http://localhost:1234/v1
+    echo 4. (可选) 配置 FO4Edit.exe 路径
+    echo ========================================
     explorer dist
-else (
+) else (
     echo.
     echo [错误] 打包失败，请检查错误信息
 )

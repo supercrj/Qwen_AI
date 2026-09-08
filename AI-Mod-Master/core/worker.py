@@ -154,36 +154,49 @@ class TranslateWorker(BaseWorker):
         }
         
     def _translate_text(self, text: str) -> Optional[str]:
-        """调用 AI API 翻译单条文本"""
-        if not self.api_key:
-            # 无 API Key 时返回模拟翻译
-            return f"[AI_TRANSLATED]{text}"
-            
+        """调用本地/远程 AI API 翻译单条文本"""
         try:
             import requests
+            # 使用配置管理器中的 API 设置
+            from core.config_manager import config_manager
+            
+            api_base_url = config_manager.get("ai_api_base_url", "http://localhost:11434/v1").rstrip('/')
+            api_key = config_manager.get("ai_api_key", "ollama")
+            model = config_manager.get("ai_model", "qwen2.5:7b")
+            
             headers = {
-                "Authorization": f"Bearer {self.api_key}",
+                "Authorization": f"Bearer {api_key}",
                 "Content-Type": "application/json"
             }
             payload = {
-                "model": self.model,
+                "model": model,
                 "messages": [
-                    {"role": "system", "content": f"Translate from {self.source_lang} to {self.target_lang}. Only output the translation."},
+                    {"role": "system", "content": f"你是一位专业的游戏翻译专家，请将以下文本从{self.source_lang}翻译成{self.target_lang}，只返回翻译结果，不要解释。"},
                     {"role": "user", "content": text}
-                ]
+                ],
+                "temperature": 0.3,
+                "max_tokens": 500
             }
+            
             response = requests.post(
-                "https://api.openai.com/v1/chat/completions",
+                f"{api_base_url}/chat/completions",
                 headers=headers,
                 json=payload,
-                timeout=10
+                timeout=30
             )
-            if response.status_code == 200:
-                return response.json()['choices'][0]['message']['content'].strip()
-        except Exception:
-            pass
             
-        return None
+            if response.status_code == 200:
+                result = response.json()
+                translated = result.get('choices', [{}])[0].get('message', {}).get('content', '').strip()
+                if translated:
+                    return translated
+            
+            # API 调用失败时返回模拟翻译
+            return f"[待翻译]{text}"
+            
+        except Exception as e:
+            self.report_log("WARNING", f"翻译 API 调用失败：{e}，使用模拟翻译")
+            return f"[待翻译]{text}"
 
 
 class SortWorker(BaseWorker):
