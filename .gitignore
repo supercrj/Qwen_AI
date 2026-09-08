@@ -1,38 +1,22 @@
 ```
-# Executables
-FO4Edit
-NifSkope
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
 
-# Common compiled/binary files
-*.exe
-*.dll
-*.so
-*.dylib
-*.o
-*.obj
-*.a
-*.lib
-*.out
+# Build artifacts
+BUILD_GUIDE.md
+*.spec
+*.bat
 
-# Build directories
-build/
-develop-eggs/
-dist/
-target/
-release/
-debug/
-
-# Dependencies
-node_modules/
-vendor/
-third_party/
-
-# Logs and temp files
+# Logs
 *.log
-*.tmp
-*.temp
-*.bak
-*.cache
+
+# Environment
+.env
+.env.local
+*.env.*
 
 # Editors
 .vscode/
@@ -40,13 +24,23 @@ third_party/
 *.swp
 *.swo
 
-# OS files
+# Dependencies
+.venv/
+venv/
+node_modules/
+
+# Coverage
+.coverage
+coverage/
+htmlcov/
+
+# Distribution
+dist/
+build/
+target/
+
+# OS
 .DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
 Thumbs.db
 
 # Environment

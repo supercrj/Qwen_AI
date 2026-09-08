@@ -20,7 +20,8 @@ class ConfigManager:
         "language": "zh_CN",
         "theme": "dark",
         "ai_api_key": "",
-        "ai_model": "gpt-4o-mini",
+        "ai_api_base_url": "http://localhost:11434/v1",
+        "ai_model": "qwen2.5:7b",
         "last_project": "",
         "window_geometry": None,
         "version": "2.0.0"

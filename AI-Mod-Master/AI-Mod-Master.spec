@@ -1,6 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
 # AI-Mod-Master PyInstaller 打包配置文件
-# 用于生成 Windows  standalone EXE 文件
+# 用于生成 Windows standalone EXE 文件
 
 from PyInstaller.utils.hooks import collect_all, collect_submodules
 
@@ -30,6 +30,12 @@ hiddenimports += [
     'PyQt6.QtCore',
     'PyQt6.QtGui',
     'PyQt6.QtWidgets',
+    'core.esp_parser',
+    'core.fo4edit_bridge',
+    'core.worker',
+    'core.config_manager',
+    'translation.strings_processor',
+    'ai_agent.mod_agent',
 ]
 
 a = Analysis(
