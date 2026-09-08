@@ -1,10 +1,12 @@
 """
 AI 智能代理引擎
 支持 Mod 分析、翻译、差错检测和自动修改
+集成本地大模型 API (Ollama, LM Studio, vLLM 等)
 """
 
 import json
-from typing import Dict, List, Any, Optional
+import requests
+from typing import Dict, List, Any, Optional, Tuple
 from pydantic import BaseModel
 
 
@@ -25,12 +27,31 @@ class AIResponse(BaseModel):
 
 
 class ModAIAgent:
-    """Mod AI 智能代理"""
+    """Mod AI 智能代理 - 支持本地大模型"""
     
-    def __init__(self, api_key: Optional[str] = None, model: str = "gpt-4"):
-        self.api_key = api_key
+    def __init__(self, api_key: Optional[str] = None, model: str = "gpt-4o-mini", 
+                 api_base_url: str = "http://localhost:11434/v1", use_local_model: bool = True):
+        """
+        初始化 AI Agent
+        
+        Args:
+            api_key: API 密钥（本地模型可为空）
+            model: 模型名称
+            api_base_url: API 基础 URL（本地模型如 Ollama: http://localhost:11434/v1）
+            use_local_model: 是否使用本地模型
+        """
+        self.api_key = api_key or "ollama"  # 本地模型通常不需要真实 key
         self.model = model
+        self.api_base_url = api_base_url.rstrip('/')
+        self.use_local_model = use_local_model
         self.task_history: List[AITask] = []
+        
+        # 本地模型常用配置
+        self.local_models = {
+            "ollama": "http://localhost:11434/v1",
+            "lm_studio": "http://localhost:1234/v1",
+            "vllm": "http://localhost:8000/v1"
+        }
         
     def analyze_mod(self, mod_json: Dict[str, Any]) -> AIResponse:
         """分析 Mod 文件结构"""
@@ -64,18 +85,63 @@ class ModAIAgent:
         )
     
     def translate_texts(self, texts: List[Dict[str, str]], target_lang: str = "zh-CN") -> AIResponse:
-        """翻译文本内容"""
+        """翻译文本内容 - 使用本地大模型 API"""
+        if not texts:
+            return AIResponse(success=True, result={}, message="无文本需要翻译")
+        
         translations = {}
         
-        for item in texts:
-            form_id = item.get('form_id', '')
-            original = item.get('original', '')
+        # 构建翻译提示
+        system_prompt = "你是一位专业的游戏翻译专家，擅长将英文游戏文本翻译成地道的中文。请保持术语一致性，翻译要符合游戏语境。"
+        
+        # 批量处理（每批最多 20 条）
+        batch_size = 20
+        for i in range(0, len(texts), batch_size):
+            batch = texts[i:i+batch_size]
             
-            # 模拟翻译 (实际应调用 LLM API)
-            translated = self._mock_translate(original, target_lang)
+            # 构建请求体
+            messages = [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": self._build_translation_prompt(batch, target_lang)}
+            ]
             
-            if translated:
-                translations[form_id] = translated
+            payload = {
+                "model": self.model,
+                "messages": messages,
+                "temperature": 0.3,
+                "max_tokens": 2000
+            }
+            
+            try:
+                # 调用本地/远程 API
+                response = requests.post(
+                    f"{self.api_base_url}/chat/completions",
+                    json=payload,
+                    headers={"Authorization": f"Bearer {self.api_key}"},
+                    timeout=60
+                )
+                
+                if response.status_code == 200:
+                    result_data = response.json()
+                    translated_text = result_data.get("choices", [{}])[0].get("message", {}).get("content", "")
+                    
+                    # 解析返回的翻译结果
+                    parsed = self._parse_translation_result(translated_text, batch)
+                    translations.update(parsed)
+                else:
+                    # API 调用失败，使用备用方案
+                    for item in batch:
+                        form_id = item.get('form_id', '')
+                        original = item.get('original', '')
+                        translations[form_id] = self._mock_translate(original, target_lang)
+                        
+            except requests.exceptions.RequestException as e:
+                print(f"API 调用失败：{e}，使用模拟翻译")
+                # 网络错误时使用模拟翻译
+                for item in batch:
+                    form_id = item.get('form_id', '')
+                    original = item.get('original', '')
+                    translations[form_id] = self._mock_translate(original, target_lang)
         
         return AIResponse(
             success=True,
@@ -87,6 +153,45 @@ class ModAIAgent:
                 "验证特殊字符编码"
             ]
         )
+    
+    def _build_translation_prompt(self, texts: List[Dict], target_lang: str) -> str:
+        """构建翻译提示词"""
+        lang_name = "中文" if target_lang == "zh-CN" else target_lang
+        
+        prompt = f"请将以下游戏文本翻译成{lang_name}，保持 JSON 格式返回：\n\n"
+        prompt += "{\n"
+        
+        for item in texts:
+            form_id = item.get('form_id', '')
+            original = item.get('original', '').replace('"', '\\"')
+            prompt += f'  "{form_id}": "{original}",\n'
+        
+        prompt += "}\n\n"
+        prompt += "请只返回翻译后的 JSON，不要添加其他解释。"
+        
+        return prompt
+    
+    def _parse_translation_result(self, translated_text: str, original_batch: List[Dict]) -> Dict[str, str]:
+        """解析 AI 返回的翻译结果"""
+        import re
+        result = {}
+        
+        try:
+            # 尝试提取 JSON 部分
+            json_match = re.search(r'\{[\s\S]*\}', translated_text)
+            if json_match:
+                translated_json = json.loads(json_match.group())
+                for item in original_batch:
+                    form_id = item.get('form_id', '')
+                    if form_id in translated_json:
+                        result[form_id] = translated_json[form_id]
+            else:
+                # 如果无法解析，返回空
+                pass
+        except (json.JSONDecodeError, Exception) as e:
+            print(f"解析翻译结果失败：{e}")
+        
+        return result
     
     def detect_errors(self, mod_json: Dict[str, Any], reference_mods: List[Dict] = None) -> AIResponse:
         """检测 Mod 错误和冲突"""
@@ -192,11 +297,36 @@ class ModAIAgent:
         )
     
     def _mock_translate(self, text: str, target_lang: str) -> str:
-        """模拟翻译 (实际应调用 OpenAI/Anthropic API)"""
-        # 这里只是示例，实际应调用 LLM
+        """模拟翻译 (API 不可用时的备用方案)"""
+        # 简单的占位符，实际使用时应确保 API 可用
         if target_lang == "zh-CN":
-            return f"[中文]{text}"  # 占位符
+            return f"[待翻译]{text}"
         return text
+    
+    def set_api_config(self, api_base_url: str, model: str, api_key: Optional[str] = None):
+        """动态更新 API 配置"""
+        self.api_base_url = api_base_url.rstrip('/')
+        self.model = model
+        if api_key:
+            self.api_key = api_key
+        print(f"API 配置已更新：{self.api_base_url}, 模型：{self.model}")
+    
+    def test_connection(self) -> Tuple[bool, str]:
+        """测试与本地/远程 API 的连接"""
+        try:
+            response = requests.get(
+                f"{self.api_base_url}/models",
+                headers={"Authorization": f"Bearer {self.api_key}"},
+                timeout=5
+            )
+            if response.status_code == 200:
+                return True, "连接成功"
+            else:
+                return False, f"API 返回错误：{response.status_code}"
+        except requests.exceptions.ConnectionError:
+            return False, "无法连接到 API 服务器，请检查服务是否运行"
+        except Exception as e:
+            return False, f"连接测试失败：{e}"
     
     def _detect_intent(self, prompt: str) -> str:
         """检测用户意图"""

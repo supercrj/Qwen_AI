@@ -198,9 +198,70 @@ class ModModifier:
     
     def save(self, output_path: str) -> bool:
         """保存修改后的文件"""
-        # TODO: 实现二进制写入逻辑
-        print(f"保存到：{output_path}")
-        return True
+        try:
+            with open(output_path, 'wb') as f:
+                # 写入文件头
+                self._write_header(f)
+                
+                # 写入所有记录
+                for record in self.parser.records:
+                    self._write_record(f, record)
+            
+            return True
+        except Exception as e:
+            print(f"保存失败：{e}")
+            return False
+    
+    def _write_header(self, f):
+        """写入 TES4 文件头"""
+        f.write(b'TES4')
+        
+        # 构建头部数据
+        header_data = b''
+        # 添加 HEDR 子记录（版本信息）
+        hedr_content = struct.pack('<f', 0.94)  # 版本号
+        hedr_content += struct.pack('<I', len(self.parser.records))  # 记录数
+        hedr_content += struct.pack('<I', 0)  # 未知字段
+        
+        f.write(struct.pack('<I', len(hedr_content)))  # 头部大小
+        f.write(hedr_content)
+    
+    def _write_record(self, f, record: FormRecord):
+        """写入单个记录"""
+        # 构建记录数据
+        rec_data = b''
+        
+        # 添加 Editor ID (EDID)
+        if record.editor_id:
+            edid_bytes = record.editor_id.encode('utf-8') + b'\x00'
+            rec_data += b'EDID'
+            rec_data += struct.pack('<H', len(edid_bytes))
+            rec_data += edid_bytes
+        
+        # 添加其他数据字段
+        for key, value in record.data.items():
+            if key in ['FULL', 'DESC'] and isinstance(value, str):
+                text_bytes = value.encode('utf-8') + b'\x00'
+                rec_data += key.encode('ascii')
+                rec_data += struct.pack('<H', len(text_bytes))
+                rec_data += text_bytes
+            elif key not in ['EDID', 'FULL', 'DESC']:
+                # 其他数据从 hex 恢复
+                if isinstance(value, str):
+                    bin_data = bytes.fromhex(value)
+                    rec_data += key.encode('ascii')
+                    rec_data += struct.pack('<H', len(bin_data))
+                    rec_data += bin_data
+        
+        # 写入记录头
+        f.write(record.record_type.encode('ascii').ljust(4)[:4])
+        f.write(struct.pack('<I', len(rec_data)))
+        f.write(struct.pack('<I', record.flags))
+        f.write(struct.pack('<I', int(record.form_id, 16)))
+        f.write(struct.pack('<H', 0))  # 保留字段
+        
+        # 写入记录数据
+        f.write(rec_data)
 
 
 if __name__ == '__main__':

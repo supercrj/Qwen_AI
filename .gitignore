@@ -16,6 +16,7 @@ NifSkope
 
 # Build directories
 build/
+develop-eggs/
 dist/
 target/
 release/
@@ -41,6 +42,11 @@ third_party/
 
 # OS files
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
 Thumbs.db
 
 # Environment
