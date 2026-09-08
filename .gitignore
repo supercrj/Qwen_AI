@@ -23,7 +23,6 @@ BUILD_GUIDE.md
 .idea/
 *.swp
 *.swo
-*.tmp
 
 # Dependencies
 .venv/
@@ -43,4 +42,9 @@ target/
 # OS
 .DS_Store
 Thumbs.db
+
+# Environment
+.env
+.env.local
+*.env.*
 ```
